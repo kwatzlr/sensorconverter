@@ -1,0 +1,396 @@
+#include <iostream>
+#include <QDir>
+#include <QDebug>
+#include <SensorDataFile.h>
+#include "main.h"
+#include <TChain.h>
+#include <TFile.h>
+#include <math.h>
+#include <TMessage.h>
+#include <QByteArray>
+QList<int> sensors;
+QList<int> owids;
+QList<QString> ownames;
+
+int main(int argc, char** argv) {
+    sensors << 34669489
+            << 34669968
+            << 34675374
+            << 34675954
+            << 34679387
+            << 34684272
+            << 34684667
+            << 34688908
+            << 34690400
+            << 34694386
+            << 34697439
+            << 34699038
+            << 34701326
+            << 34701412
+            << 34703921
+            << 34704763
+            << 34707079
+            << 34713191
+            << 34716973
+            << 34726045
+            << 34727685
+            << 34731208
+            << 34731514
+            << 34745865
+            << 34860968
+            << 35729408
+            << 35729409
+            << 35729664
+            << 35729665
+            << 35730176
+            << 35730177
+            << 35731200
+            << 35731201
+            << 35741696
+            << 35741697
+            << 35741952
+            << 35741953
+            << 35742208
+            << 35742209
+            << 35742464
+            << 35742465
+            << 35742720
+            << 35742721
+            << 35742976
+            << 35742977
+            << 35743232
+            << 35743233
+            << 35743488
+            << 35743489
+            << 35747840
+            << 35747841
+            << 35748096
+            << 35748097
+            << 35748352
+            << 35748353
+            << 35748608
+            << 35748609
+            << 35748864
+            << 35748865
+            << 35749120
+            << 35749121
+            << 35749376
+            << 35749377
+            << 35749632
+            << 35749633
+            << 35750088
+            << 35750089
+            << 35750090
+            << 35750091
+            << 35750092
+            << 35750093
+            << 35750094
+            << 35750095
+            << 35750097
+            << 35848192
+            << 35848193
+            << 35848194
+            << 35848195
+            << 36765696
+            << 36765697
+            << 38862848
+            << 37289984;
+    owids << 21856
+          << 7410
+          << 32868
+          << 35377
+          << 44647
+          << 10843
+          << 57501
+          << 48429
+          << 28895
+          << 945
+          << 25842
+          << 38535
+          << 59141
+          << 6830
+          << 30494
+          << 62664
+          << 1424
+          << 16123
+          << 36219
+          << 15728
+          << 32782
+          << 20364;
+    ownames << QString("TRD_UFE_BOTTOM_COLD_TEMP")
+            << QString("TRD_UFE_TOP_COLD_TEMP")
+            << QString("TRACKER_UFE_BOTTOM_COLD_TEMP")
+            << QString("TRACKER_UFE_TOP_COLD_TEMP")
+            << QString("TRACKER_UFE_TOP_HOT_TEMP")
+            << QString("TRACKER_UFE_BOTTOM_HOT_TEMP")
+            << QString("TRD_UFE_TOP_HOT_TEMP")
+            << QString("TRD_UFE_BOTTOM_HOT_TEMP")
+            << QString("POWER_UFE_TEMP")
+            << QString("USB_BOARD_TEMP")
+            << QString("POWER_MID_TEMP")
+            << QString("TRD_TUBE_TOP_HOT_TEMP")
+            << QString("TRD_TUBE_TOP_COLD_TEMP")
+            << QString("TRD_GAS_COLD_TEMP")
+            << QString("TRD_GAS_HOT_TEMP")
+            << QString("TRD_TUBE_BOTTOM_HOT_TEMP")
+            << QString("TRD_TUBE_BOTTOM_COLD_TEMP")
+            << QString("POWER_GAS_TEMP")
+            << QString("OUTLET_TEMP")
+            << QString("INLET_TEMP")
+            << QString("BAT_BOTTOM_TEMP")
+            << QString("BAT_TOP_TEMP");
+    if (argc != 2) {
+        std::cout << "USAGE: " << argv[0] << " directory" << std::endl;
+        return -1;
+    }
+    QDir dir;
+    if (!dir.exists(argv[1])) {
+        std::cout << "ERROR: directory does not exist" << std::endl;
+        return -1;
+    }
+    dir.setPath(argv[1]);
+    QStringList filters;
+    filters << "sensors*.dat";
+    QStringList files = dir.entryList(filters);
+    qDebug() << files;
+    int success_count = 0;
+    if (!files.size()) {
+        std::cout << "Directory doesn't contain any convertable files." << std::endl;
+        return -1;
+    }
+    QList<QString> rootfiles;
+    unsigned int lasttime = 0;
+    for (int i = 0; i< files.size();i++) {
+        QString path = dir.absolutePath();
+        qDebug() << path;
+        path.append("/");
+        qDebug() << path;
+        path.append(files[i]);
+        qDebug() << path;
+        QString rootfile = doConversion(path,lasttime);
+        if (!rootfile.isEmpty()) {
+            success_count++;
+            rootfiles.append(rootfile);
+        }
+    }
+    TChain chain("sensors");
+    for (int i = 0; i < rootfiles.length();i++) {
+        chain.Add(qPrintable(rootfiles[i]));
+    }
+    QString resultfile = dir.absolutePath();
+    resultfile.append("/sensors.root");
+
+
+    chain.Merge(qPrintable(resultfile));
+    QStringList atcfilter;
+    atcfilter << "bexus11_positiondata_table.dat";
+    QStringList atcfiles = dir.entryList(atcfilter);
+    if (atcfiles.isEmpty()) {
+        std::cout << "bexus11_positiondata_table.dat not found";
+    } else {
+        TFile* resultrootfile = new TFile(qPrintable(resultfile),"UPDATE");
+        TTree* atctree = new TTree("ATC","Air Traffic Control data");
+        unsigned int atctime;
+        int atcid;
+        float atclatitude;
+        float atclongitude;
+        float atcheight;
+        float atchor_speed;
+        float atcheading;
+
+        atctree->Branch("time",&atctime);
+        atctree->Branch("ID",&atcid);
+        atctree->Branch("LATITUDE",&atclatitude);
+        atctree->Branch("LONGITUDE", &atclongitude);
+        atctree->Branch("HEIGHT",&atcheight);
+        atctree->Branch("HORIZONTAL_SPEED",&atchor_speed);
+        atctree->Branch("HEADING",&atcheading);
+        QString atcfile = dir.absoluteFilePath(atcfiles[0]);
+        QFile* file = new QFile(atcfile);
+        file->open(QFile::ReadOnly);
+        while (!file->atEnd()) {
+            QByteArray lineba = file->readLine();
+            QString line(lineba);
+            if (!line.startsWith('#')) {
+                QStringList linedata = line.split(" ");
+                atctime = linedata[0].toUInt();
+                atcid = linedata[1].toInt();
+                atclatitude = linedata[2].toFloat();
+                atclongitude = linedata[3].toFloat();
+                atcheight = linedata[4].toFloat();
+                atchor_speed = linedata[5].toFloat();
+                atcheading = linedata[6].toFloat();
+                atctree->Fill();
+            }
+        }
+        resultrootfile->Write();
+
+    }
+    if (success_count) {
+        std::cout << "Sucessfully converted " << success_count << " files." << std::endl;
+    } else {
+        std::cout << "Didn't convert any files." << std::endl;
+    }
+}
+
+
+QString doConversion(QString path, unsigned int &lasttime) {
+    SensorDataFile* file = new SensorDataFile(path,SensorDataFile::MODE_READING,SensorDataFile::TYPE_RAW);
+    quint32 currenttime = 0;
+    quint32 newlasttime = 0;
+    QString rootpath = path;
+    qDebug() << rootpath;
+    rootpath.chop(3);
+    qDebug() << rootpath;
+    rootpath.append("root");
+    qDebug() << rootpath;
+    TFile* rootfile = new TFile(qPrintable(rootpath),"RECREATE","PERDaix flight sensor data",1);
+    TTree* tree = new TTree("sensors", "Onboard sensor data");
+    QMap<int,float> values;
+    QMap<int,float> values2;
+    for (int i = 0;i<sensors.length();i++) {
+        //qDebug() << i;
+        values2[sensors[i]] = 0;
+        //qDebug() << hex << sensors[i] << ": " << hex << (sensors[i] & 0xFFF0000);
+        if ((sensors[i] == 37289984)) {
+            tree->Branch("TRIGGER_RATE",&values2[sensors[i]]);
+        }
+        if ((sensors[i] & 0xFFF0000) == 0x2210000) {
+            if ((sensors[i] & 0x000FFF0) == 0x80c0) {
+                tree->Branch(qPrintable(QString("TOF_").append(QString::number((sensors[i] & 0x00000FF)-0xc7,10)).append("_TEMP")),&values2[sensors[i]]);
+            } else if ((sensors[i] & 0x000FFF0) == 0x80d0) {
+                tree->Branch(qPrintable(QString("TRIGGER_BOARD_TEMP")),&values2[sensors[i]]);
+            } else {
+                tree->Branch(qPrintable(QString("HPE_0x").append(QString::number(sensors[i] & 0x000FFFF,16)).append("_TEMP")),&values2[sensors[i]]);
+            }
+        } else {
+            if ((sensors[i] & 0x00F0000) == 0x0020000) {
+                tree->Branch(qPrintable(QString("TRD_PRESSURE")),&values2[sensors[i]]);
+            } else  if ((sensors[i] & 0x00F0000) == 0x0030000) {
+                if (sensors[i] == 0x2230000) {
+                    tree->Branch("TRACKER_1_VOLTAGE",&values2[sensors[i]]);
+                }
+                if (sensors[i] == 0x2230001) {
+                    tree->Branch("TRACKER_2_VOLTAGE",&values2[sensors[i]]);
+                }
+                if (sensors[i] == 0x2230002) {
+                    tree->Branch("TRACKER_3_VOLTAGE",&values2[sensors[i]]);
+                }
+                if (sensors[i] == 0x2230003) {
+                    tree->Branch("TRD_VOLTAGE",&values2[sensors[i]]);
+                }
+                if (sensors[i] == 0x213efa8) {
+                    tree->Branch("TOF_VOLTAGE",&values2[sensors[i]]);
+                }
+            } else {
+                if ((sensors[i] & 0x0F00000) == 0x0100000) {
+                    //tree->Branch(qPrintable(QString("OW_0x").append(QString::number(sensors[i],16))),&values2[sensors[i]]);
+                } else if ((sensors[i] & 0x0F00000) == 0x0300000){
+                    if (sensors[i] == 0x2310000) {
+                        tree->Branch("CPU_TEMP",&values2[sensors[i]]);
+                    }
+                    if (sensors[i] == 0x2310001) {
+                        tree->Branch("PC_TEMP",&values2[sensors[i]]);
+                    }
+
+                } else if ((sensors[i] & 0x0F00000) == 0x0500000) {
+                    tree->Branch("TDC_TEMP",&values2[sensors[i]]);
+                } else {
+                    //tree->Branch("TRIGGER_RATE",&values2[sensors[i]]);
+
+                }
+            }
+        }
+    }
+    //qDebug() << "hier bin ich";
+    for (int i = 0; i < owids.length();i++) {
+        int id = 0x2110000;
+        id |= owids[i];
+        tree->Branch(qPrintable(ownames[i]),&values2[id]);
+    }
+    tree->Branch("time",&currenttime);
+    QMap<unsigned int, QMap<int, float> > sensordata;
+    qDebug() << "Filling data";
+    while (1) {
+        SensorData* data = file->ReadData();
+        if (!data) { break;}
+        SensorID* id = data->GetSensorID();
+        if (id->GetSensorType() == SensorID::SENSOR_TEMPERATURE_C ||
+            id->GetSensorType() == SensorID::SENSOR_PRESSURE_HPA ||
+            id->GetSensorType() == SensorID::SENSOR_VOLTAGE_V ||
+            id->GetSensorType() == SensorID::SENSOR_TRIGGER_RATE_HZ) {
+                quint32 time = data->GetTime();
+                if (time <= lasttime) { continue;}
+                sensordata[time][id->GetID32()] = data->ToFloat32();
+        }
+        delete data;
+    }
+    qDebug() << "Filling tree";
+    // loop over all times
+    if (!sensordata.keys().empty()) {
+
+        quint32 smallesttime = sensordata.keys().first();
+        if (lasttime != 0) {
+            for (quint32 i = lasttime+1;i<smallesttime;i++) {
+                currenttime = i;
+                for (int j = 0; j < sensors.length();j++) {
+                    values2[sensors[j]] = sqrt(-1);
+                }
+                tree->Fill();
+            }
+        }
+        quint32 largesttime = sensordata.keys().last();
+        for (quint32 i = smallesttime; i<= largesttime; i++) {
+            currenttime = i;
+            if (sensordata.contains(i)) {
+                QMap<int, float> bla = sensordata[i];
+                for (int j = 0; j < sensors.length();j++) {
+                    if (bla.contains(sensors[j])) {
+                        values2[sensors[j]] = bla[sensors[j]];
+                    } else {
+                        values2[sensors[j]] = sqrt(-1);
+                    }
+                }
+            } else {
+                for (int j = 0; j < sensors.length();j++) {
+                    values2[sensors[j]] = sqrt(-1);
+                }
+            }
+            tree->Fill();
+        }
+        /*while (iter_times.hasNext()) {
+        iter_times.next();
+        currenttime = iter_times.key();
+        // initialize every value to NaN
+        QMap<int, float> bla = iter_times.value();
+        for (int i = 0; i < sensors.length();i++) {
+            if (bla.contains(sensors[i])) {
+                values2[sensors[i]] = bla[sensors[i]];
+            } else {
+                values2[sensors[i]] = sqrt(-1);
+            }
+        }
+        tree->Fill();
+
+
+    }*/
+    }
+    tree->Print();
+    qDebug() << "Writing tree to file";
+    rootfile->Write();
+    if (sensordata.keys().empty()) { } else {
+        lasttime = sensordata.keys().last();
+    }
+    rootfile->Close();
+    //delete tree;
+    delete file;
+    return rootpath;
+
+
+
+
+
+
+
+    qDebug() << "Komm ich hier hin?";
+}
