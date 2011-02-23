@@ -191,7 +191,7 @@ int main(int argc, char** argv) {
         TFile* resultrootfile = new TFile(qPrintable(resultfile),"UPDATE");
         TTree* atctree = new TTree("ATC","Air Traffic Control data");
         unsigned int atctime;
-        int atcid;
+        //int atcid;
         float atclatitude;
         float atclongitude;
         float atcheight;
@@ -199,12 +199,12 @@ int main(int argc, char** argv) {
         float atcheading;
 
         atctree->Branch("time",&atctime);
-        atctree->Branch("ID",&atcid);
-        atctree->Branch("LATITUDE",&atclatitude);
-        atctree->Branch("LONGITUDE", &atclongitude);
-        atctree->Branch("HEIGHT",&atcheight);
-        atctree->Branch("HORIZONTAL_SPEED",&atchor_speed);
-        atctree->Branch("HEADING",&atcheading);
+        //atctree->Branch("ID",&atcid);
+        atctree->Branch("ATC_LATITUDE",&atclatitude);
+        atctree->Branch("ATC_LONGITUDE", &atclongitude);
+        atctree->Branch("ATC_HEIGHT",&atcheight);
+        atctree->Branch("ATC_HORIZONTAL_SPEED",&atchor_speed);
+        atctree->Branch("ATC_HEADING",&atcheading);
         QString atcfile = dir.absoluteFilePath(atcfiles[0]);
         QFile* file = new QFile(atcfile);
         file->open(QFile::ReadOnly);
@@ -223,9 +223,59 @@ int main(int argc, char** argv) {
                 atctree->Fill();
             }
         }
-        resultrootfile->Write();
+        file->close();
+        delete file;
 
     }
+
+    atcfilter << "Bexus11.cvs";
+    QStringList ebassfiles = dir.entryList(ebassfilter);
+    if (ebassfiles.isEmpty()) {
+        std::cout << "Bexus11.cvs not found";
+    } else {
+        TTree* ebasstree = new TTree("EBASS","EBASS data");
+        unsigned int ebasstime;
+        float ebasslatitude;
+        float ebasslongitude;
+        float ebassheight;
+        float ebasshor_speed;
+        float ebassheading;
+        float ebasstemp_out;
+        float ebasstemp_gas;
+        float ebassair_pres;
+
+        ebasstree->Branch("time", &ebasstime);
+        ebasstree->Branch("EBASS_LATITUDE", &ebasslatitude);
+        ebasstree->Branch("EBASS_LONGITUDE",&ebasslongitude);
+        ebasstree->Branch("EBASS_HEIGHT", &ebassheight);
+        ebasstree->Branch("EBASS_HORIZONTAL_SPEED", &ebasshor_speed);
+        ebasstree->Branch("EBASS_HEADING", &ebassheading);
+        ebasstree->Branch("EBASS_TEMP_OUT",&ebasstemp_out);
+        ebasstree->Branch("EBASS_TEMP_GAS", &ebasstemp_gas);
+        ebasstree->Branch("EBASS_PRESSURE", &ebassair_pres);
+        QString ebassfile = dir.absoluteFilePath(ebassfiles[0]);
+
+        QFile* file = new QFile(ebassfile);
+        file->open(QFile::ReadOnly);
+        int previoustime = 0;
+        file->readLine();
+        file->readLine();
+        while (!file->atEnd()) {
+            QByteArray lineba = file->readLine();
+            QString line(lineba);
+            QStringList linedata = line.split(";");
+            QDateTime datetime;
+            datetime.setTimeSpec(Qt::UTC);
+            datetime.setDate(QDate(2010,11,23));
+            datetime.setTime(QTime::fromString(linedata[74],"hh:mm:ss"));
+            ebasstime = datetime.toTime_t();
+
+            ebasslatitude = (linedata[66].contains("N")*2-1)*(linedata[67].toInt()/100000+((float)(linedata[67].toInt()%100000))/60000.);
+
+        }
+
+    }
+    resultrootfile->Write();
     if (success_count) {
         std::cout << "Sucessfully converted " << success_count << " files." << std::endl;
     } else {
