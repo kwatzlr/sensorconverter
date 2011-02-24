@@ -8,6 +8,8 @@
 #include <math.h>
 #include <TMessage.h>
 #include <QByteArray>
+#include <QDate>
+#include <QDateTime>
 QList<int> sensors;
 QList<int> owids;
 QList<QString> ownames;
@@ -185,10 +187,11 @@ int main(int argc, char** argv) {
     QStringList atcfilter;
     atcfilter << "bexus11_positiondata_table.dat";
     QStringList atcfiles = dir.entryList(atcfilter);
+    TFile* resultrootfile = new TFile(qPrintable(resultfile),"UPDATE");
     if (atcfiles.isEmpty()) {
         std::cout << "bexus11_positiondata_table.dat not found";
     } else {
-        TFile* resultrootfile = new TFile(qPrintable(resultfile),"UPDATE");
+
         TTree* atctree = new TTree("ATC","Air Traffic Control data");
         unsigned int atctime;
         //int atcid;
@@ -214,7 +217,7 @@ int main(int argc, char** argv) {
             if (!line.startsWith('#')) {
                 QStringList linedata = line.split(" ");
                 atctime = linedata[0].toUInt();
-                atcid = linedata[1].toInt();
+                //atcid = linedata[1].toInt();
                 atclatitude = linedata[2].toFloat();
                 atclongitude = linedata[3].toFloat();
                 atcheight = linedata[4].toFloat();
@@ -227,12 +230,13 @@ int main(int argc, char** argv) {
         delete file;
 
     }
-
-    atcfilter << "Bexus11.cvs";
+    QStringList ebassfilter;
+    ebassfilter << "Bexus11.cvs";
     QStringList ebassfiles = dir.entryList(ebassfilter);
     if (ebassfiles.isEmpty()) {
         std::cout << "Bexus11.cvs not found";
     } else {
+
         TTree* ebasstree = new TTree("EBASS","EBASS data");
         unsigned int ebasstime;
         float ebasslatitude;
@@ -257,9 +261,10 @@ int main(int argc, char** argv) {
 
         QFile* file = new QFile(ebassfile);
         file->open(QFile::ReadOnly);
-        int previoustime = 0;
+
         file->readLine();
         file->readLine();
+        QMap<unsigned int, QVector<float> > ebassvalues;
         while (!file->atEnd()) {
             QByteArray lineba = file->readLine();
             QString line(lineba);
@@ -268,10 +273,47 @@ int main(int argc, char** argv) {
             datetime.setTimeSpec(Qt::UTC);
             datetime.setDate(QDate(2010,11,23));
             datetime.setTime(QTime::fromString(linedata[74],"hh:mm:ss"));
-            ebasstime = datetime.toTime_t();
-
-            ebasslatitude = (linedata[66].contains("N")*2-1)*(linedata[67].toInt()/100000+((float)(linedata[67].toInt()%100000))/60000.);
-
+            unsigned int time = datetime.toTime_t();
+            float latitude = ((int)((bool)(linedata[66].contains("N")))*2-1)*(linedata[67].toInt()/100000+((float)(linedata[67].toInt()%100000))/60000.);
+            float longitude = ((int)((bool)(linedata[68].contains("E")))*2-1)*(linedata[69].toInt()/100000+((float)(linedata[69].toInt()%100000))/60000.);
+            float height = linedata[72].toFloat();
+            float horspeed = linedata[70].toFloat();
+            float heading = linedata[71].toFloat();
+            float temp_out = linedata[3].toFloat();
+            float temp_gas = linedata[5].toFloat();
+            float press = linedata[7].toFloat();
+            ebassvalues[time].push_back(latitude);
+            ebassvalues[time].push_back(longitude);
+            ebassvalues[time].push_back(height);
+            ebassvalues[time].push_back(horspeed);
+            ebassvalues[time].push_back(heading);
+            ebassvalues[time].push_back(temp_out);
+            ebassvalues[time].push_back(temp_gas);
+            ebassvalues[time].push_back(press);
+        }
+        int previoustime = 0;
+        QMapIterator<unsigned int, QVector<float> > j(ebassvalues);
+        while (j.hasNext()) {
+            j.next();
+            if (previoustime != 0 && j.key() != previoustime ) {
+                for (int i=previoustime+1;i<j.key();i++) {
+                    ebassvalues[i] = ebassvalues[previoustime];
+                }
+            }
+        }
+        j.toFront();
+        while (j.hasNext()) {
+            j.next();
+            QVector<float> vec = j.value();
+            ebasslatitude = vec.at(0);
+            ebasslongitude = vec.at(1);
+            ebassheight = vec.at(2);
+            ebasshor_speed = vec.at(3);
+            ebassheading = vec.at(4);
+            ebasstemp_out = vec.at(5);
+            ebasstemp_gas = vec.at(6);
+            ebassair_pres = vec.at(7);
+            ebasstree->Fill();
         }
 
     }
