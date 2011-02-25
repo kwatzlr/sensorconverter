@@ -231,10 +231,10 @@ int main(int argc, char** argv) {
 
     }
     QStringList ebassfilter;
-    ebassfilter << "Bexus11.cvs";
+    ebassfilter << "Bexus11.csv";
     QStringList ebassfiles = dir.entryList(ebassfilter);
     if (ebassfiles.isEmpty()) {
-        std::cout << "Bexus11.cvs not found";
+        std::cout << "Bexus11.csv not found";
     } else {
 
         TTree* ebasstree = new TTree("EBASS","EBASS data");
@@ -258,13 +258,14 @@ int main(int argc, char** argv) {
         ebasstree->Branch("EBASS_TEMP_GAS", &ebasstemp_gas);
         ebasstree->Branch("EBASS_PRESSURE", &ebassair_pres);
         QString ebassfile = dir.absoluteFilePath(ebassfiles[0]);
-
+        qDebug() << "Ebass: " << ebassfile;
         QFile* file = new QFile(ebassfile);
-        file->open(QFile::ReadOnly);
+        file->open(QFile::ReadOnly | QIODevice::Text);
 
-        file->readLine();
-        file->readLine();
+        qDebug() << file->readLine();
+        qDebug() << file->readLine();
         QMap<unsigned int, QVector<float> > ebassvalues;
+
         while (!file->atEnd()) {
             QByteArray lineba = file->readLine();
             QString line(lineba);
@@ -272,6 +273,7 @@ int main(int argc, char** argv) {
             QDateTime datetime;
             datetime.setTimeSpec(Qt::UTC);
             datetime.setDate(QDate(2010,11,23));
+            linedata[74].chop(1);
             datetime.setTime(QTime::fromString(linedata[74],"hh:mm:ss"));
             unsigned int time = datetime.toTime_t();
             float latitude = ((int)((bool)(linedata[66].contains("N")))*2-1)*(linedata[67].toInt()/100000+((float)(linedata[67].toInt()%100000))/60000.);
@@ -290,6 +292,7 @@ int main(int argc, char** argv) {
             ebassvalues[time].push_back(temp_out);
             ebassvalues[time].push_back(temp_gas);
             ebassvalues[time].push_back(press);
+            qDebug() << "Added for time " << time;// << ": " << ebassvalues[time];
         }
         int previoustime = 0;
         QMapIterator<unsigned int, QVector<float> > j(ebassvalues);
@@ -305,6 +308,7 @@ int main(int argc, char** argv) {
         while (j.hasNext()) {
             j.next();
             QVector<float> vec = j.value();
+            ebasstime = j.key();
             ebasslatitude = vec.at(0);
             ebasslongitude = vec.at(1);
             ebassheight = vec.at(2);
