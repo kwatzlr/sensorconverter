@@ -421,6 +421,68 @@ QString doConversion(QString path, unsigned int &lasttime) {
         }
         delete data;
     }
+    //interpolate data
+
+    if (!sensordata.keys().empty()) {
+        for (int i =0;i< sensors.length();i++) {
+            // look for first entry
+            quint32 smallesttime = sensordata.keys().first();
+            quint32 firsttime = 0;
+            float firstentry = 0.;
+            qDebug() << "Finding first entry";
+            for (int j = 0; j<sensordata.keys().length();j++) {
+                if (sensordata[sensordata.keys()[j]].contains(sensors[i])) {
+                    firsttime = sensordata.keys()[j];
+                    firstentry = sensordata[firsttime][sensors[i]];
+                    break;
+                }
+            }
+            // fill up to first entry
+            qDebug() << "Filling front";
+            for (quint32 j = smallesttime; j<firstentry;j++) {
+                sensordata[j][sensors[i]] = firstentry;
+            }
+            quint32 largesttime = sensordata.keys().last();
+            quint32 lasttime = 0;
+            float lastentry = 0.;
+            qDebug() << "Finding last entry";
+            for (int j = sensordata.keys().length();j>0;j--) {
+                if (sensordata[sensordata.keys()[j]].contains(sensors[i])) {
+                    lasttime = sensordata.keys()[j];
+                    lastentry = sensordata[lasttime][sensors[i]];
+                    break;
+                }
+            }
+            // fill down to last entry
+            qDebug() << "Filling back";
+            for (quint32 j = largesttime;j>lasttime;j--) {
+                sensordata[j][sensors[i]] = lastentry;
+            }
+            // interpolate the rest
+            quint32 time1 = firsttime;
+            quint32 time2 = firsttime;
+            qDebug() << "interpoliere";
+            for (quint32 j = firsttime; j < lasttime; j++) {
+                if (sensordata[j].contains(sensors[i])) {
+                    // do nothing
+                } else {
+                    if (j < time2) {
+                        sensordata[j][sensors[i]] = ((float)((time2-j)*sensordata[time1][sensors[i]]+(j-time1)*sensordata[time2][sensors[i]]))/((float)(time2-time1));
+                    } else {
+                        time1 = time2;
+                        for (quint32 k = time1+1;k<=lasttime;k++) {
+                            if (sensordata[k].contains(sensors[i])) {
+                                time2 = k;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+        }
+    }
+
     qDebug() << "Filling tree";
     // loop over all times
     if (!sensordata.keys().empty()) {
@@ -440,6 +502,7 @@ QString doConversion(QString path, unsigned int &lasttime) {
             currenttime = i;
             if (sensordata.contains(i)) {
                 QMap<int, float> bla = sensordata[i];
+                ;
                 for (int j = 0; j < sensors.length();j++) {
                     if (bla.contains(sensors[j])) {
                         values2[sensors[j]] = bla[sensors[j]];
@@ -448,8 +511,9 @@ QString doConversion(QString path, unsigned int &lasttime) {
                     }
                 }
             } else {
+                QMap<int, float> blam1 = sensordata[i-1];
                 for (int j = 0; j < sensors.length();j++) {
-                    values2[sensors[j]] = sqrt(-1);
+                    values2[sensors[j]] = blam1[sensors[j]]; // Fill with previous, shouldn't really happen
                 }
             }
             tree->Fill();
