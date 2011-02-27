@@ -446,7 +446,7 @@ QString doConversion(QString path, unsigned int &lasttime) {
             quint32 lasttime = 0;
             float lastentry = 0.;
             qDebug() << "Finding last entry";
-            for (int j = sensordata.keys().length();j>0;j--) {
+            for (int j = sensordata.keys().length()-1;j>=0;j--) {
                 if (sensordata[sensordata.keys()[j]].contains(sensors[i])) {
                     lasttime = sensordata.keys()[j];
                     lastentry = sensordata[lasttime][sensors[i]];
