@@ -427,8 +427,8 @@ QString doConversion(QString path, unsigned int &lasttime) {
         for (int i =0;i< sensors.length();i++) {
             // look for first entry
             quint32 smallesttime = sensordata.keys().first();
-            quint32 firsttime = 0;
-            float firstentry = 0.;
+            quint32 firsttime = smallesttime;
+            float firstentry = sqrt(-1);
             qDebug() << "Finding first entry";
             for (int j = 0; j<sensordata.keys().length();j++) {
                 if (sensordata[sensordata.keys()[j]].contains(sensors[i])) {
@@ -439,12 +439,12 @@ QString doConversion(QString path, unsigned int &lasttime) {
             }
             // fill up to first entry
             qDebug() << "Filling front";
-            for (quint32 j = smallesttime; j<firstentry;j++) {
+            for (quint32 j = smallesttime; j<firsttime;j++) {
                 sensordata[j][sensors[i]] = firstentry;
             }
             quint32 largesttime = sensordata.keys().last();
-            quint32 lasttime = 0;
-            float lastentry = 0.;
+            quint32 lasttime = largesttime;
+            float lastentry = sqrt(-1);
             qDebug() << "Finding last entry";
             for (int j = sensordata.keys().length()-1;j>=0;j--) {
                 if (sensordata[sensordata.keys()[j]].contains(sensors[i])) {
