@@ -276,11 +276,14 @@ int main(int argc, char** argv) {
         qDebug() << file->readLine();
         qDebug() << file->readLine();
         QMap<unsigned int, QVector<float> > ebassvalues;
-
+        unsigned int previous = 0.;
         while (!file->atEnd()) {
             QByteArray lineba = file->readLine();
             QString line(lineba);
             QStringList linedata = line.split(";");
+            if (linedata[0].isEmpty()) {
+                continue;
+            }
             QDateTime datetime;
             datetime.setTimeSpec(Qt::UTC);
             datetime.setDate(QDate(2010,11,23));
@@ -295,6 +298,19 @@ int main(int argc, char** argv) {
             float temp_out = linedata[3].toFloat();
             float temp_gas = linedata[5].toFloat();
             float press = linedata[7].toFloat();
+            unsigned int maxtime = time;
+            if (previoustime !=0 && previoustime + 1 != maxtime) {
+                for (int i = previoustime; i<maxtime;i++) {
+                    ebassvalues[i].push_back(latitude);
+                    ebassvalues[i].push_back(latitude);
+                    ebassvalues[i].push_back(height);
+                    ebassvalues[i].push_back(horspeed);
+                    ebassvalues[i].push_back(heading);
+                    ebassvalues[i].push_back(temp_out);
+                    ebassvalues[i].push_back(temp_gas);
+                    ebassvalues[i].push_back(press);
+                }
+            }
             ebassvalues[time].push_back(latitude);
             ebassvalues[time].push_back(longitude);
             ebassvalues[time].push_back(height);
