@@ -211,12 +211,22 @@ int main(int argc, char** argv) {
         QString atcfile = dir.absoluteFilePath(atcfiles[0]);
         QFile* file = new QFile(atcfile);
         file->open(QFile::ReadOnly);
+        unsigned int previoustime = 0;
         while (!file->atEnd()) {
             QByteArray lineba = file->readLine();
             QString line(lineba);
             if (!line.startsWith('#')) {
+
                 QStringList linedata = line.split(" ");
                 atctime = linedata[0].toUInt();
+                unsigned int maxtime = atctime;
+                if (previoustime != 0 && atctime != previoustime + 1) {
+                    for (unsigned int i = previoustime;i<maxtime;i++) {
+                        atctime = i;
+                        atctree->Fill();
+                    }
+                }
+
                 //atcid = linedata[1].toInt();
                 atclatitude = linedata[2].toFloat();
                 atclongitude = linedata[3].toFloat();
@@ -224,6 +234,7 @@ int main(int argc, char** argv) {
                 atchor_speed = linedata[5].toFloat();
                 atcheading = linedata[6].toFloat();
                 atctree->Fill();
+
             }
         }
         file->close();
