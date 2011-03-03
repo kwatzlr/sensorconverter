@@ -226,7 +226,7 @@ int main(int argc, char** argv) {
                         atctree->Fill();
                     }
                 }
-
+                previoustime = atctime;
                 //atcid = linedata[1].toInt();
                 atclatitude = linedata[2].toFloat();
                 atclongitude = linedata[3].toFloat();
@@ -276,12 +276,12 @@ int main(int argc, char** argv) {
         qDebug() << file->readLine();
         qDebug() << file->readLine();
         QMap<unsigned int, QVector<float> > ebassvalues;
-        unsigned int previous = 0.;
+        unsigned int previousetime = 0;
         while (!file->atEnd()) {
             QByteArray lineba = file->readLine();
             QString line(lineba);
             QStringList linedata = line.split(";");
-            if (linedata[0].isEmpty()) {
+            if (linedata[74].isEmpty()) {
                 continue;
             }
             QDateTime datetime;
@@ -299,8 +299,8 @@ int main(int argc, char** argv) {
             float temp_gas = linedata[5].toFloat();
             float press = linedata[7].toFloat();
             unsigned int maxtime = time;
-            if (previoustime !=0 && previoustime + 1 != maxtime) {
-                for (int i = previoustime; i<maxtime;i++) {
+            if (previousetime !=0 && previousetime + 1 != maxtime) {
+                for (int i = previousetime; i<maxtime;i++) {
                     ebassvalues[i].push_back(latitude);
                     ebassvalues[i].push_back(latitude);
                     ebassvalues[i].push_back(height);
@@ -311,6 +311,7 @@ int main(int argc, char** argv) {
                     ebassvalues[i].push_back(press);
                 }
             }
+            previousetime = time;
             ebassvalues[time].push_back(latitude);
             ebassvalues[time].push_back(longitude);
             ebassvalues[time].push_back(height);
