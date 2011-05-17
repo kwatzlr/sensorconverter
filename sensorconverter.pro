@@ -2,11 +2,11 @@ TARGET = sensorconverter
 QT += network
 SOURCES = main.cpp
 HEADERS = main.h
-INCLUDEPATH += ../perdaix/perdaix10/flightsoftware/libraries/sensors/ \
-                ../perdaix/perdaix10/flightsoftware/libraries/global/ \
+INCLUDEPATH += ../sw/perdaix/perdaix10/flightsoftware/libraries/sensors/ \
+                ../sw/perdaix/perdaix10/flightsoftware/libraries/global/ \
                 $$system(root-config --incdir)
 
-LIBS += -L../perdaix/perdaix10/lib -lperdaixsensors -lperdaixglobal \
+LIBS += -L../sw/perdaix/perdaix10/lib -lperdaixsensors -lperdaixglobal \
         $$system(root-config --cflags --libs)
 
 QMAKE_LFLAGS -= -Wl,--as-needed
